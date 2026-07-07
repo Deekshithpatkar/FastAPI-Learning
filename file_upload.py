@@ -50,12 +50,16 @@ def upload(file:list[UploadFile]=File()):
 #saving multiple files
 @app.post("/uploadsavemultiple")
 def upload(file:list[UploadFile]=File()):
+    uploaded_files=[]
     for files in file:
         with open(f"uploads/{files.filename}","wb") as buffer:
             shutil.copyfileobj(files.file,buffer)
+        uploaded_files.append(files.filename)  #to save names of files
+        
     return{
         "message": "all files uploaded",
-        "total files received": len(file)
+        "total files received": len(file),
+        "uploaded_files":uploaded_files
     }
 
 
