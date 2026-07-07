@@ -1,3 +1,4 @@
+from ast import List
 from fastapi import FastAPI, UploadFile, File
 
 app=FastAPI()
@@ -233,3 +234,179 @@ async def upload_video(file: UploadFile = File()):
         "height": height
     }
 
+# read text without saving it
+@app.post("/text")
+async def upload(file: UploadFile = File()):
+    contents = await file.read()
+    text = contents.decode("utf-8")
+#    md=markdown.markdown(contents)  # for markdown
+#    csv=pd.read_csv(contents)  # for csv
+#    excel=pd.read_excel(contents)  # for excel
+#    doc = fitz.open(stream=contents, filetype="pdf")  # for pdf
+#    img = Image.open(io.BytesIO(contents))  # for images
+#    video = cv2.VideoCapture(io.BytesIO(contents))  # for videos
+    return {
+        "text": text
+    }
+
+
+# upload multiple files and process based on file type
+@app.post("/uploadmultiplesave")
+async def upload(file: list[UploadFile] = File()):
+
+    results = []
+
+    for file in file:
+
+        # ------------------------------------------
+        # Save Uploaded File (if you do not want to save the file, remove this section)
+        # ------------------------------------------
+
+        filepath = f"uploads/{file.filename}"
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # ------------------------------------------
+        # PDF
+        # ------------------------------------------
+
+        if file.content_type == "application/pdf":
+
+            doc = fitz.open(filepath)
+
+            text = ""
+
+            for page in doc:
+                text += page.get_text()
+
+            doc.close()
+
+            results.append({
+                "filename": file.filename,
+                "type": "PDF",
+                "content": text
+            })
+
+        # ------------------------------------------
+        # IMAGE
+        # ------------------------------------------
+
+        elif file.content_type.startswith("image/"):
+
+            image = Image.open(filepath)
+
+            results.append({
+                "filename": file.filename,
+                "type": "Image",
+                "width": image.width,
+                "height": image.height,
+                "mode": image.mode,
+                "format": image.format
+            })
+
+        # ------------------------------------------
+        # CSV
+        # ------------------------------------------
+
+        elif file.filename.endswith(".csv"):
+
+            df = pd.read_csv(filepath)
+
+            df = df.fillna("")
+
+            results.append({
+                "filename": file.filename,
+                "type": "CSV",
+                "rows": df.to_dict(orient="records")
+            })
+
+        # ------------------------------------------
+        # EXCEL
+        # ------------------------------------------
+
+        elif file.filename.endswith(".xlsx"):
+
+            df = pd.read_excel(filepath)
+
+            df = df.fillna("")
+
+            results.append({
+                "filename": file.filename,
+                "type": "Excel",
+                "rows": df.to_dict(orient="records")
+            })
+
+        # ------------------------------------------
+        # TEXT FILE
+        # ------------------------------------------
+
+        elif file.filename.endswith(".txt"):
+
+            with open(filepath, "r", encoding="utf-8") as f:
+                text = f.read()
+
+            results.append({
+                "filename": file.filename,
+                "type": "Text",
+                "content": text
+            })
+
+        # ------------------------------------------
+        # MARKDOWN
+        # ------------------------------------------
+
+        elif file.filename.endswith(".md"):
+
+            with open(filepath, "r", encoding="utf-8") as f:
+                md_text = f.read()
+
+            html = markdown.markdown(md_text)
+
+            results.append({
+                "filename": file.filename,
+                "type": "Markdown",
+                "markdown": md_text,
+                "html": html
+            })
+
+        # ------------------------------------------
+        # VIDEO
+        # ------------------------------------------
+
+        elif file.content_type.startswith("video/"):
+
+            video = cv2.VideoCapture(filepath)
+
+            total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = video.get(cv2.CAP_PROP_FPS)
+            width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+            video.release()
+
+            results.append({
+                "filename": file.filename,
+                "type": "Video",
+                "frames": total_frames,
+                "fps": fps,
+                "width": width,
+                "height": height
+            })
+
+        # ------------------------------------------
+        # Unsupported File
+        # ------------------------------------------
+
+        else:
+
+            results.append({
+                "filename": file.filename,
+                "type": "Unknown",
+                "message": "Unsupported file type"
+            })
+
+    return {
+        "total_files": len(results),
+        "files": results
+    }
