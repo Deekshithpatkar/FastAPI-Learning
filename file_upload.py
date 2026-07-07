@@ -64,4 +64,172 @@ def upload(file:list[UploadFile]=File()):
 
 
 
+import pandas as pd
+# pyrefly: ignore [missing-import]
+import fitz
+from PIL import Image
+# pyrefly: ignore [missing-import]
+import cv2
+import markdown
+
+
+# read text file
+@app.post("/uploadtxt")
+async def upload_txt(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    with open(filepath, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    return {
+        "filename": file.filename,
+        "content": text
+    }
+
+
+# read markdown
+@app.post("/uploadmd")
+async def upload_md(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    with open(filepath, "r", encoding="utf-8") as f:
+        md_text = f.read()
+
+    return {
+        "filename": file.filename,
+        "markdown": md_text
+    }
+
+
+# read markdown and convert to html
+@app.post("/uploadmdhtml")
+async def upload_md_html(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    with open(filepath, "r", encoding="utf-8") as f:
+        md_text = f.read()
+
+    html = markdown.markdown(md_text)
+
+    return {
+        "filename": file.filename,
+        "html": html
+    }
+
+
+# read csv
+@app.post("/uploadcsv")
+async def upload_csv(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    df = pd.read_csv(filepath)
+
+    return {
+        "filename": file.filename,
+        "rows": df.to_dict(orient="records")
+    }
+
+
+# read excel
+@app.post("/uploadexcel")
+async def upload_excel(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    df = pd.read_excel(filepath)
+
+    return {
+        "filename": file.filename,
+        "rows": df.to_dict(orient="records")
+    }
+
+
+# read pdf
+@app.post("/uploadpdf")
+async def upload_pdf(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    doc = fitz.open(filepath)
+
+    text = ""
+
+    for page in doc:
+        text += page.get_text()
+
+    doc.close()
+
+    return {
+        "filename": file.filename,
+        "text": text
+    }
+
+
+# read image
+@app.post("/uploadimage")
+async def upload_image(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    image = Image.open(filepath)
+
+    return {
+        "filename": file.filename,
+        "width": image.width,
+        "height": image.height,
+        "mode": image.mode,
+        "format": image.format
+    }
+
+
+# read video
+@app.post("/uploadvideo")
+async def upload_video(file: UploadFile = File()):
+
+    filepath = f"uploads/{file.filename}"
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    video = cv2.VideoCapture(filepath)
+
+    total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = video.get(cv2.CAP_PROP_FPS)
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    video.release()
+
+    return {
+        "filename": file.filename,
+        "frames": total_frames,
+        "fps": fps,
+        "width": width,
+        "height": height
+    }
 
